@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { percentsSumTo100 } from "../lib/money.js";
 
 const CATEGORIES = ["Food", "Travel", "Fun", "Stay"];
@@ -23,6 +23,12 @@ export default function AddExpenseForm({ members, onAdd }) {
   const [splitWith, setSplitWith] = useState(members.map((m) => m.id));
   const [percents, setPercents] = useState(evenPercents(members.map((m) => m.id)));
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!members.find((m) => m.id === Number(paidBy)) && members.length > 0) {
+      setPaidBy(members[0].id);
+    }
+  }, [members, paidBy]);
 
   const selected = useMemo(
     () => members.filter((m) => splitWith.includes(m.id)),
@@ -49,9 +55,16 @@ export default function AddExpenseForm({ members, onAdd }) {
       setError("Pick at least one person to split with.");
       return;
     }
-    if (splitType === "percent" && !percentsSumTo100(percents)) {
-      setError("Percentages must add to 100.");
-      return;
+
+    const activePercents = {};
+    if (splitType === "percent") {
+      splitWith.forEach((id) => {
+        activePercents[id] = Number(percents[id] || 0);
+      });
+      if (!percentsSumTo100(activePercents)) {
+        setError("Percentages must add to 100.");
+        return;
+      }
     }
 
     onAdd({
@@ -60,10 +73,14 @@ export default function AddExpenseForm({ members, onAdd }) {
       paidBy: Number(paidBy),
       splitType,
       splitWith: splitWith.map(Number),
-      percents: splitType === "percent" ? percents : undefined,
-      date: new Date(date),
+      percents: splitType === "percent" ? activePercents : undefined,
+      date,
       category,
     });
+
+    setDescription("");
+    setAmount("");
+    setError("");
   }
 
   return (
@@ -153,7 +170,7 @@ export default function AddExpenseForm({ members, onAdd }) {
               checked={splitType === "equal"}
               onChange={() => setSplitType("equal")}
             />
-            Split equally
+              Split equally
           </label>
           <label className="check">
             <input
@@ -197,3 +214,4 @@ export default function AddExpenseForm({ members, onAdd }) {
     </section>
   );
 }
+

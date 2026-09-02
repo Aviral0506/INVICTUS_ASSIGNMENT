@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatMoney } from "../lib/money.js";
 import { dateValue, formatDate } from "../lib/format.js";
 
@@ -13,6 +13,11 @@ function initials(name) {
 
 function ExpenseRow({ expense, memberMap, onDelete, onSaveAmount }) {
   const [draft, setDraft] = useState(String(expense.amount));
+
+  useEffect(() => {
+    setDraft(String(expense.amount));
+  }, [expense.amount]);
+
   const payer = memberMap[expense.paidBy];
 
   return (
@@ -38,6 +43,13 @@ function ExpenseRow({ expense, memberMap, onDelete, onSaveAmount }) {
               const n = Number(draft);
               if (Number.isFinite(n) && n > 0 && n !== Number(expense.amount)) {
                 onSaveAmount(n);
+              } else {
+                setDraft(String(expense.amount));
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.target.blur();
               }
             }}
             aria-label={`Edit amount for ${expense.description}`}
@@ -55,11 +67,11 @@ function ExpenseRow({ expense, memberMap, onDelete, onSaveAmount }) {
 export default function ExpenseList({
   expenses,
   members,
-  onDeleteAt,
-  onUpdateAt,
+  onDelete,
+  onUpdate,
 }) {
   const memberMap = Object.fromEntries(members.map((m) => [m.id, m]));
-  const sorted = [...expenses].sort((a, b) => dateValue(a.date) - dateValue(b.date));
+  const sorted = [...expenses].sort((a, b) => dateValue(b.date) - dateValue(a.date));
 
   return (
     <section className="card">
@@ -68,16 +80,17 @@ export default function ExpenseList({
       {sorted.length === 0 ? (
         <p className="empty">No expenses match these filters.</p>
       ) : (
-        sorted.map((expense, index) => (
+        sorted.map((expense) => (
           <ExpenseRow
-            key={index}
+            key={expense.id}
             expense={expense}
             memberMap={memberMap}
-            onDelete={() => onDeleteAt(index)}
-            onSaveAmount={(amount) => onUpdateAt(index, { amount })}
+            onDelete={() => onDelete(expense.id)}
+            onSaveAmount={(amount) => onUpdate(expense.id, { amount })}
           />
         ))
       )}
     </section>
   );
 }
+

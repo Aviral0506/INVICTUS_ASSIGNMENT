@@ -1,12 +1,17 @@
 const KEY = "fairshare-v1";
 
 function hydrate(data) {
+  if (!data) return data;
   return {
     groupName: data.groupName,
-    members: data.members.map((m) => ({ ...m })),
-    expenses: data.expenses.map((e) => ({
+    members: (data.members || []).map((m) => ({ ...m, id: Number(m.id) })),
+    expenses: (data.expenses || []).map((e) => ({
       ...e,
-      date: new Date(e.date),
+      id: String(e.id),
+      paidBy: Number(e.paidBy),
+      amount: Number(e.amount),
+      splitWith: (e.splitWith || []).map(Number),
+      date: e.date,
     })),
   };
 }
@@ -19,7 +24,7 @@ export function loadState(seed) {
       localStorage.setItem(KEY, JSON.stringify(initial));
       return initial;
     }
-    return JSON.parse(raw);
+    return hydrate(JSON.parse(raw));
   } catch {
     return hydrate(seed);
   }
@@ -30,11 +35,11 @@ export function persistState(state) {
 }
 
 export function nextExpenseId() {
-  return `e-${Date.now()}`;
+  return `e-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 }
 
 export function nextMemberId(members) {
-  const max = members.reduce((m, x) => (x.id > m ? x.id : m), 0);
+  const max = members.reduce((m, x) => (Number(x.id) > m ? Number(x.id) : m), 0);
   return max + 1;
 }
 
@@ -44,14 +49,18 @@ export function reducer(state, action) {
       return { ...state, expenses: [...state.expenses, action.expense] };
     }
     case "DELETE_EXPENSE": {
-      const next = state.expenses.slice();
-      next.splice(action.index, 1);
-      return { ...state, expenses: next };
+      return {
+        ...state,
+        expenses: state.expenses.filter((e) => e.id !== action.id),
+      };
     }
     case "UPDATE_EXPENSE": {
-      const next = state.expenses.slice();
-      next[action.index] = { ...next[action.index], ...action.patch };
-      return { ...state, expenses: next };
+      return {
+        ...state,
+        expenses: state.expenses.map((e) =>
+          e.id === action.id ? { ...e, ...action.patch } : e
+        ),
+      };
     }
     case "ADD_MEMBER": {
       return { ...state, members: [...state.members, action.member] };
@@ -60,3 +69,4 @@ export function reducer(state, action) {
       return state;
   }
 }
+
